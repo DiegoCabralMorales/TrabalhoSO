@@ -1,3 +1,4 @@
+Jogo de terminal feito para a disciplina de Sistemas Operacionais
 - pvp
 - 2 players
 - mapa: matriz 3x7
