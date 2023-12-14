@@ -1,38 +1,94 @@
 #include <iostream>
-#include <stdio.h>
-#include <thread>
-#include <mutex>
-#include <chrono>
+#include <ncurses.h>
+#include <unistd.h>
+#include <vector>
+#include <semaphore.h>
 
-using namespace std;
+struct Asteroid {
+    bool v;
+    int x, y;
 
-std::mutex ataque_p1;
-std::mutex ataque_p2;
+    Asteroid(int x, int y) : x(x), y(y), v(true) {}
+};
 
-void ataqueP1(int tipoAtaque){
-    ataque_p1.lock();
-    //executa comando de ataque(regiao critica)
-    ataque_p1.unlock();
+namespace Asteroids { 
+    std::vector<Asteroid> pos;
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    bool check_colisions();
+
+    // Asteroid asteroid(rand() % maxX, 0);
 }
 
-void ataqueP2(int tipoAtaque){
-    ataque_p2.lock();
-    //executa comando de ataque(regiao critica)
-    ataque_p2.unlock();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+namespace Game {
+    int maxY, maxX;
 }
 
-int main(){
-    int tipoAtaqueP1;
-    int tipoAtaqueP2;
-    std::thread funcoesP1(ataqueP1, std::ref(tipoAtaqueP1));
-    std::thread funcoesP2(ataqueP2, std::ref(tipoAtaqueP2));
-    funcoesP1.join();
-    funcoesP2.join();
+struct Player {
+    int x, y;
 
-    std::cout << std::endl;
+    Player() : x(Game::maxX/2 - 2), y(Game::maxY - 3) {}
+
+    void moveLeft() {
+        if (x > 0) x--;
+    }
+
+    void moveRight() {
+        if (x < Game::maxX - 1) x++;
+    }
+
+    void draw(){
+        mvprintw(y, x, "  A");
+        mvprintw(y+1, x, " / \\");
+        mvprintw(y+2, x, "[]-[]");
+    }
+};
+
+
+int main() {
+    initscr();
+    curs_set(0);
+    keypad(stdscr, true);
+    timeout(0);
+    
+    getmaxyx(stdscr, Game::maxY, Game::maxX);
+
+    // Create player and initial asteroid
+    Player player;
+    
+    int score = 0;
+
+    // Game loop
+    while (true) {
+        switch (getch()) {
+            case 'q':
+                endwin(); // Clean up and exit
+                return 0;
+            case KEY_LEFT:
+                player.moveLeft();
+                break;
+            case KEY_RIGHT:
+                player.moveRight();
+                break;
+        }
+
+
+        // Generate a new asteroid when the previous one reaches the bottom
+        // if (asteroid.getY() == maxY - 1) {
+        //     asteroid = Asteroid(rand() % maxX, 0);
+        //     score++;
+        // }
+
+        // Render
+        clear();
+        player.draw();
+        refresh();
+
+        // Pause to slow down the game
+        // usleep(100 * 1000); // 10ms delay
+    }
+
+    // Clean up
+    endwin();
+
     return 0;
 }
