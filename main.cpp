@@ -1,94 +1,139 @@
 #include <iostream>
 #include <ncurses.h>
+#include <semaphore.h>
+#include <thread>
 #include <unistd.h>
 #include <vector>
-#include <semaphore.h>
 
-struct Asteroid {
-    bool v;
-    int x, y;
-
-    Asteroid(int x, int y) : x(x), y(y), v(true) {}
+struct Pos {
+	int x, y;
 };
-
-namespace Asteroids { 
-    std::vector<Asteroid> pos;
-
-    bool check_colisions();
-
-    // Asteroid asteroid(rand() % maxX, 0);
-}
 
 namespace Game {
-    int maxY, maxX;
-}
+	int maxY, maxX;
 
-struct Player {
-    int x, y;
+	bool running = true;
+} // namespace Game
 
-    Player() : x(Game::maxX/2 - 2), y(Game::maxY - 3) {}
+namespace Player {
+	int x, y;
 
-    void moveLeft() {
-        if (x > 0) x--;
-    }
+	std::vector<Pos> bullets;
 
-    void moveRight() {
-        if (x < Game::maxX - 1) x++;
-    }
+	void moveLeft() {
+		if (x > 0)
+			x--;
+	}
 
-    void draw(){
-        mvprintw(y, x, "  A");
-        mvprintw(y+1, x, " / \\");
-        mvprintw(y+2, x, "[]-[]");
-    }
-};
+	void moveRight() {
+		if (x < Game::maxX - 1)
+			x++;
+	}
 
+	void draw() {
+		mvprintw(y, x, "  A");
+		mvprintw(y + 1, x, " / \\");
+		mvprintw(y + 2, x, "[]-[]");
+	}
+
+	void shoot() {}
+}; // namespace Player
+
+namespace Asteroids {
+	std::vector<Pos> asteroids;
+	int max = 20;
+
+	void spawn_asteroids() {
+		while (Game::running) {
+			if (asteroids.size() < max)
+				asteroids.push_back(Pos{rand() % Game::maxX, 0});
+
+			usleep(100 * 1000);
+		}
+	}
+
+	void draw() {
+		for (auto &a : asteroids) {
+			mvaddch(a.y, a.x, 'O');
+		}
+	}
+
+	int check_colisions() {
+		for (auto &a : asteroids) {
+			if (a.y == Player::y && a.x == Player::x + 2)
+				return Game::running = 0;
+			if (a.y == Player::y + 1 && a.x > Player::x && a.x < Player::x + 3)
+				return Game::running = 0;
+			if (a.y == Player::y + 2 && a.x >= Player::x && a.x <= Player::x + 3)
+				return Game::running = 0;
+		}
+
+		return 1;
+	}
+
+	void update() {
+		for (auto it = asteroids.begin(); it != asteroids.end(); it++) {
+			it->y++;
+			if (it->y > Game::maxY)
+				asteroids.erase(it);
+		}
+
+		check_colisions();
+	}
+} // namespace Asteroids
 
 int main() {
-    initscr();
-    curs_set(0);
-    keypad(stdscr, true);
-    timeout(0);
-    
-    getmaxyx(stdscr, Game::maxY, Game::maxX);
+	initscr();
+	curs_set(0);
+	keypad(stdscr, true);
+	timeout(0);
 
-    // Create player and initial asteroid
-    Player player;
-    
-    int score = 0;
+	getmaxyx(stdscr, Game::maxY, Game::maxX);
 
-    // Game loop
-    while (true) {
-        switch (getch()) {
-            case 'q':
-                endwin(); // Clean up and exit
-                return 0;
-            case KEY_LEFT:
-                player.moveLeft();
-                break;
-            case KEY_RIGHT:
-                player.moveRight();
-                break;
-        }
+	Player::x = Game::maxX / 2 - 2;
+	Player::y = Game::maxY - 3;
 
+	int score = 0;
 
-        // Generate a new asteroid when the previous one reaches the bottom
-        // if (asteroid.getY() == maxY - 1) {
-        //     asteroid = Asteroid(rand() % maxX, 0);
-        //     score++;
-        // }
+	std::thread obstacles(Asteroids::spawn_asteroids);
 
-        // Render
-        clear();
-        player.draw();
-        refresh();
+	// Game loop
+	while (Game::running) {
+		switch (getch()) {
+		case 'q':
+			Game::running = 0;
+			break;
+		case KEY_LEFT:
+			Player::moveLeft();
+			break;
+		case KEY_RIGHT:
+			Player::moveRight();
+			break;
+		case 'x':
+			Player::shoot();
+			break;
+		}
 
-        // Pause to slow down the game
-        // usleep(100 * 1000); // 10ms delay
-    }
+		// Render
+		clear();
+		Player::draw();
+		Asteroids::draw();
+		refresh();
+		Asteroids::update();
 
-    // Clean up
-    endwin();
+		// Pause to slow down the game
+		usleep(30 * 1000);
+	}
+	
+	clear();
+	mvprintw(20, 20, "Game over");
 
-    return 0;
+	timeout(-1);
+	getch();
+
+	endwin();
+
+	obstacles.join();
+
+	return 0;
 }
