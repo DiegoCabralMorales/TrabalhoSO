@@ -3,6 +3,7 @@
 #include "game.hpp"
 #include "player.hpp"
 #include "asteroids.hpp"
+#include "score.hpp"
 #include <unistd.h>
 
 int main() {
@@ -18,6 +19,9 @@ int main() {
 
     int score = 0;
 
+	mvprintw(20, 20, "Pressione um botao para iniciar o jogo");
+	getch();
+
     std::thread obstacles(Asteroids::spawn_asteroids);
     std::thread actions(Player::input);
     std::thread rendering(Game::gameLoop);
@@ -26,6 +30,7 @@ int main() {
     actions.join();
     rendering.join();
 
+	clear();
     mvprintw(20, 20, "Game over");
     refresh();
 

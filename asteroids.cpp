@@ -1,6 +1,7 @@
 #include "asteroids.hpp"
 #include "game.hpp"
 #include "player.hpp"
+#include "score.hpp"
 #include <cstdlib>
 #include <ncurses.h>
 #include <unistd.h>

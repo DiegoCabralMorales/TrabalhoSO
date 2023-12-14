@@ -1,6 +1,7 @@
 #include "player.hpp"
 #include "asteroids.hpp"
 #include "game.hpp"
+#include "score.hpp"
 #include <ncurses.h>
 
 namespace Player {
@@ -53,6 +54,7 @@ namespace Player {
 					it = bullets.erase(it);
 					it2 = Asteroids::asteroids.erase(it2);
 					hit = true;
+					Score::addScore();
 					break;
 				}
 
