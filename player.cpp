@@ -83,7 +83,6 @@ namespace Player {
 
 					// up() no semáforo que controla o número de asteroides na tela
 					sem_post(&Game::currAsts);
-					break;
 				}
 				// Se não removeu asteroide precisa incrementar contador
 				else it2++;
