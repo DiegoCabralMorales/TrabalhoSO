@@ -64,7 +64,8 @@ namespace Game {
 		mvprintw(yStart+4, xStart, " / ____ \\\\__ \\ ||  __/ | | (_) | | (_| \\__ \\");
 		mvprintw(yStart+5, xStart, "/_/    \\_\\___/\\__\\___|_|  \\___/|_|\\__,_|___/");
 
-		mvprintw(yStart+7, xStart+3, "Pressione qualquer tecla para começar!");
+		mvprintw(yStart+7, xStart-8, "Use as setas direita e esquerda para se mover, X para atirar");
+		mvprintw(yStart+8, xStart+3, "Pressione qualquer tecla para começar!");
 
 		refresh();
 
