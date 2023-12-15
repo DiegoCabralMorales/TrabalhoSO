@@ -1,21 +1,22 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <mutex>
+#include <semaphore.h>
 
 namespace Game {
-    extern int maxY, maxX;
-    extern int score;
-    extern bool running;
+	extern int maxY, maxX;
+	extern int score;
+	extern bool running;
 
-    extern std::mutex astMutex;
-    extern std::mutex plyMutex;
+	extern sem_t currAsts;
+	extern sem_t astMutex;
+	extern sem_t plyMutex;
 
-    void init();
-    void drawStartScreen();
-    void gameLoop();
-    void drawScore();
-    void drawGameOver();
+	void init();
+	void StartScreen();
+	void gameLoop();
+	void drawScore();
+	void GameOver();
 }
 
 #endif // GAME_H

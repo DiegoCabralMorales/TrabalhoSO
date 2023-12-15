@@ -6,22 +6,23 @@
 #include <unistd.h>
 
 int main() {
-    Game::init();
-    Player::init();
+	// Inicializa o ambiente do jogo
+	Game::init();
+	Player::init();
 
-	Game::drawStartScreen();
+	Game::StartScreen();
 
-    std::thread obstacles(Asteroids::spawn_asteroids);
-    std::thread actions(Player::input);
-    std::thread rendering(Game::gameLoop);
+	// Inicia as threads para a geração de obstáculos (asteróides), entrada do jogador e renderização do jogo
+	std::thread obstaculos(Asteroids::spawn_asteroids);
+	std::thread acoes(Player::input);
+	std::thread renderizacao(Game::gameLoop);
 
-    obstacles.join();
-    actions.join();
-    rendering.join();
+	// Aguarda o término das threads
+	obstaculos.join();
+	acoes.join();
+	renderizacao.join();
 
-	Game::drawGameOver();
-
-    endwin();
-
-    return 0;
+	Game::GameOver();
+	
+	return 0;
 }

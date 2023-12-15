@@ -6,14 +6,12 @@ struct Pos;
 #include <vector>
 
 namespace Asteroids {
-    extern std::vector<Pos> asteroids;
-    extern int max;
+	extern std::vector<Pos> asteroids;
 
-    void init();
-    void spawn_asteroids();
-    void draw();
-    bool check_player_colision();
-    void update();
+	void spawn_asteroids();
+	void draw();
+	bool check_player_collision();
+	void update();
 }
 
 #endif // ASTEROIDS_H

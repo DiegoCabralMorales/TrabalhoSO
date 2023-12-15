@@ -1,128 +1,152 @@
 #include "player.hpp"
 #include "asteroids.hpp"
 #include "game.hpp"
+#include <chrono>
 #include <cstdlib>
 #include <ncurses.h>
 #include <string>
-#include <unistd.h>
+#include <thread>
 #include <ctime>
+#include <semaphore.h>
 
 namespace Game {
-  int maxY, maxX;
-  bool running = true;
-  int score = 0;
+	int maxY, maxX;
+	bool running = true;
+	int score = 0;
 
-  std::string separator;
+	std::string separator;
+	sem_t currAsts;
+	sem_t astMutex;
+	sem_t plyMutex;
+	
+	// Inicializa a janela da biblioteca ncurses, define algumas opções/constantes, inicializa os semáforos
+	void init(){
+		srand(time(0));
 
-  std::mutex astMutex;
-  std::mutex plyMutex;
+		initscr();
+		curs_set(0);
+		keypad(stdscr, true);
+		timeout(-1);
+		start_color();
+		noecho();
 
-  void init(){
-    srand(time(0));
+		getmaxyx(stdscr, Game::maxY, Game::maxX);
 
-    initscr();
-    curs_set(0);
-    keypad(stdscr, true);
-    timeout(-1);
-    start_color();
-    noecho();
+		init_pair(1, COLOR_RED, COLOR_BLACK);
+		init_pair(2, COLOR_BLUE, COLOR_BLACK);
 
-    getmaxyx(stdscr, Game::maxY, Game::maxX);
+		separator = std::string(maxX, '-');
+		
+		sem_init(&currAsts, 0, 20); // 20 é o máximo de asteroides na tela por vez
+		sem_init(&astMutex, 0, 1); // Mutex
+		sem_init(&plyMutex, 0, 1); // Mutex
+	}
 
-    init_pair(1, COLOR_RED, COLOR_BLACK);
+	// Gera a tela inicial do jogo
+	void StartScreen(){
+		int yStart = Game::maxY/3;
+		int xStart = Game::maxX/2 - 22;
 
-    separator = std::string(maxX, '-');
-  }
+		// Posiciona alguns asteroides aleatoriamente
+		for(int i = 0; i < 50; i++){
+			int x = rand() % Game::maxX;
+			int y = rand() % Game::maxY;
+			mvaddch(y, x, 'O');
+		}
+		
+		// Desenha a nave do jogador e o nome do jogo
+		Player::draw_spaceship();
 
-  void drawStartScreen(){
-    int yStart = Game::maxY/3;
-    int xStart = Game::maxX/2 - 22;
+		mvprintw(yStart, xStart, "              _                 _     _     ");
+		mvprintw(yStart+1, xStart, "    /\\       | |               (_)   | |    ");
+		mvprintw(yStart+2, xStart, "   /  \\   ___| |_ ___ _ __ ___  _  __| |___ ");
+		mvprintw(yStart+3, xStart, "  / /\\ \\ / __| __/ _ \\ '__/ _ \\| |/ _` / __|");
+		mvprintw(yStart+4, xStart, " / ____ \\\\__ \\ ||  __/ | | (_) | | (_| \\__ \\");
+		mvprintw(yStart+5, xStart, "/_/    \\_\\___/\\__\\___|_|  \\___/|_|\\__,_|___/");
 
-    for(int i = 0; i < 50; i++){
-      int x = rand() % Game::maxX;
-      int y = rand() % Game::maxY;
-      mvaddch(y, x, 'O');
-    }
+		mvprintw(yStart+7, xStart+3, "Pressione qualquer tecla para começar!");
 
-    Player::draw_spaceship();
+		refresh();
 
-    mvprintw(yStart, xStart, "              _                 _     _     ");
-    mvprintw(yStart+1, xStart, "    /\\       | |               (_)   | |    ");
-    mvprintw(yStart+2, xStart, "   /  \\   ___| |_ ___ _ __ ___  _  __| |___ ");
-    mvprintw(yStart+3, xStart, "  / /\\ \\ / __| __/ _ \\ '__/ _ \\| |/ _` / __|");
-    mvprintw(yStart+4, xStart, " / ____ \\\\__ \\ ||  __/ | | (_) | | (_| \\__ \\");
-    mvprintw(yStart+5, xStart, "/_/    \\_\\___/\\__\\___|_|  \\___/|_|\\__,_|___/");
+		getch();
+	}
 
-    mvprintw(yStart+7, xStart+3, "Pressione qualquer tecla para começar!");
+	void GameOver(){
+		clear();
 
-    refresh();
+		int yStart = Game::maxY/3;
+		int xStart = Game::maxX/2 - 28;
 
-    getch();
-  }
+		// Desenha a tela de Game Over
+		attron(COLOR_PAIR(1));
+		mvprintw(yStart, xStart, " _____   ___  ___  ___ _____   _____  _   _ ___________ ");
+		mvprintw(yStart+1, xStart, "|  __ \\ / _ \\ |  \\/  ||  ___| |  _  || | | |  ___| ___ \\");
+		mvprintw(yStart+2, xStart, "| |  \\// /_\\ \\| .  . || |__   | | | || | | | |__ | |_/ /");
+		mvprintw(yStart+3, xStart, "| | __ |  _  || |\\/| ||  __|  | | | || | | |  __||    / ");
+		mvprintw(yStart+4, xStart, "| |_\\ \\| | | || |  | || |___  \\ \\_/ /\\ \\_/ / |___| |\\ \\ ");
+		mvprintw(yStart+5, xStart, " \\____/\\_| |_/\\_|  |_/\\____/   \\___/  \\___/\\____/\\_| \\_|");
+		attroff(COLOR_PAIR(1));
 
-  void drawGameOver(){
-    clear();
+		std::string scoreStr = "Score: " + std::to_string(Game::score);
+		int offset = 28 - scoreStr.size()/2;
+		mvprintw(yStart+7, xStart+offset, "%s", scoreStr.c_str());
+		mvprintw(yStart+9, xStart+13, "Pressione ESC para sair do jogo");
+		
+		// Espera o usuário apertar ESC para fechar
+		int c, ESC = 27;
+		while((c = getch()) != ESC);
 
-    int yStart = Game::maxY/3;
-    int xStart = Game::maxX/2 - 28;
+		// Finaliza a janela do ncurses
+		endwin();
 
-    attron(COLOR_PAIR(1));
-    mvprintw(yStart, xStart, " _____   ___  ___  ___ _____   _____  _   _ ___________ ");
-    mvprintw(yStart+1, xStart, "|  __ \\ / _ \\ |  \\/  ||  ___| |  _  || | | |  ___| ___ \\");
-    mvprintw(yStart+2, xStart, "| |  \\// /_\\ \\| .  . || |__   | | | || | | | |__ | |_/ /");
-    mvprintw(yStart+3, xStart, "| | __ |  _  || |\\/| ||  __|  | | | || | | |  __||    / ");
-    mvprintw(yStart+4, xStart, "| |_\\ \\| | | || |  | || |___  \\ \\_/ /\\ \\_/ / |___| |\\ \\ ");
-    mvprintw(yStart+5, xStart, " \\____/\\_| |_/\\_|  |_/\\____/   \\___/  \\___/\\____/\\_| \\_|");
-    attroff(COLOR_PAIR(1));
+		// Destroi (free) nos semáforos
+		sem_destroy(&Game::currAsts);
+		sem_destroy(&Game::astMutex);
+		sem_destroy(&Game::plyMutex);
+	}
 
-    std::string scoreStr = "Score: " + std::to_string(Game::score);
-    int offset = 28 - scoreStr.size()/2;
-    mvprintw(yStart+7, xStart+offset, "%s", scoreStr.c_str());
-    mvprintw(yStart+9, xStart+13, "Pressione ESC para sair do jogo");
-    
-    int c, ESC = 27;
-    while((c = getch()) != ESC);
-  }
+	// Utilitário pra exibir a pontuação do score e um separador entre o jogo e a HUD
+	void drawHUD(){
+		std::string scoreStr = "Score: " + std::to_string(Game::score);
+		int xpos = Game::maxX/2 - scoreStr.size()/2;
+		
+		mvprintw(0, xpos, "Score: %d", Game::score);
+		mvprintw(1, 0, "%s", separator.c_str());
+	}
 
-  void drawHUD(){
-    std::string scoreStr = "Score: " + std::to_string(Game::score);
-    int xpos = Game::maxX/2 - scoreStr.size()/2;
-    
-    mvprintw(0, xpos, "Score: %d", Game::score);
-    mvprintw(1, 0, "%s", separator.c_str());
-  }
+	// Atualiza e desenha os elementos do jogo a cada 50ms
+	// Uma thread ficará responsável por essa função
+	void gameLoop(){
+		while (Game::running){
+			// Precisa fazer leitura/escrita na região crítica para as atualizações e renders
+			// down() nos semáforos para garantir que não está sendo gerado nenhum asteroide nem o player executando ação
+			sem_wait(&plyMutex);
+			sem_wait(&astMutex);
 
-  void gameLoop(){
-      int frameMod = 0;
+			clear(); // Limpa a tela
 
-      while (Game::running){
-      // Render
-        astMutex.lock();
-        plyMutex.lock();
+			// Atualizações
+			Player::update_bullets();
+			Asteroids::update();
 
-        clear();
+			// Renders
+			Player::draw_spaceship();
+			Player::draw_bullets();
+			Asteroids::draw();
 
-        Player::update_bullets();
-        Asteroids::update();
+			// Checa se o jogo deve continuar rodando
+			Game::running = !Asteroids::check_player_collision();
 
-        Player::draw_spaceship();
-        Player::draw_bullets();
-        Asteroids::draw();
+			// up() nos semáforos de região crítica
+			sem_post(&astMutex);
+			sem_post(&plyMutex);
 
-        Game::running = !Asteroids::check_player_colision();
+			drawHUD(); // Desenha o score
+			refresh();
 
-        plyMutex.unlock();
-        astMutex.unlock();
-
-        frameMod = (frameMod+1)%100;
-        if(frameMod == 99)
-          Game::score += 20;
-
-        drawHUD();
-        refresh();
-
-        // Pause to slow down the game
-        usleep(50 * 1000);
-    }
-  }
+			// Espera 50ms pra que o jogo não seja rápido demais
+			std::chrono::milliseconds duration(50);
+			std::this_thread::sleep_for(duration);
+		}
+	}
 }
