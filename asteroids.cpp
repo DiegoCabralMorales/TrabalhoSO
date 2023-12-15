@@ -1,7 +1,6 @@
 #include "asteroids.hpp"
 #include "game.hpp"
 #include "player.hpp"
-#include "score.hpp"
 #include <cstdlib>
 #include <ncurses.h>
 #include <unistd.h>
@@ -12,8 +11,12 @@ namespace Asteroids {
 
 	void spawn_asteroids() {
 		while (Game::running) {
+			Game::astMutex.lock();
+
 			if (asteroids.size() < max)
-				asteroids.push_back(Pos{rand() % Game::maxX, 0});
+				asteroids.push_back({rand() % Game::maxX, 1});
+
+			Game::astMutex.unlock();
 
 			usleep(100 * 1000);
 		}
@@ -25,17 +28,17 @@ namespace Asteroids {
 		}
 	}
 
-	int check_colisions() {
+	bool check_player_colision() {
 		for (auto &a : asteroids) {
 			if (a.y == Player::y && a.x == Player::x + 2)
-				return Game::running = 0;
+				return true;
 			if (a.y == Player::y + 1 && a.x > Player::x && a.x < Player::x + 4)
-				return Game::running = 0;
+				return true;
 			if (a.y == Player::y + 2 && a.x >= Player::x && a.x <= Player::x + 4)
-				return Game::running = 0;
+				return true;
 		}
 
-		return 1;
+		return false;
 	}
 
 	void update() {
@@ -46,7 +49,5 @@ namespace Asteroids {
 			else
 				it++;
 		}
-
-		check_colisions();
 	}
 } // namespace Asteroids

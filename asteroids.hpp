@@ -12,7 +12,7 @@ namespace Asteroids {
     void init();
     void spawn_asteroids();
     void draw();
-    int check_colisions();
+    bool check_player_colision();
     void update();
 }
 

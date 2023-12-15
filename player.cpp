@@ -1,7 +1,6 @@
 #include "player.hpp"
 #include "asteroids.hpp"
 #include "game.hpp"
-#include "score.hpp"
 #include <ncurses.h>
 
 namespace Player {
@@ -14,23 +13,33 @@ namespace Player {
   }
 
 	void moveLeft() {
+		Game::plyMutex.lock();
+
 		if (x > 0)
 			x--;
+
+		Game::plyMutex.unlock();
 	}
 
 	void moveRight() {
+		Game::plyMutex.lock();
+
 		if (x < Game::maxX - 1)
 			x++;
+
+		Game::plyMutex.unlock();
 	}
 
-	void draw() {
+	void draw_spaceship() {
 		mvprintw(y, x, "  A");
 		mvprintw(y + 1, x, " / \\");
 		mvprintw(y + 2, x, "[]-[]");
 	}
 
 	void shoot(){
-		bullets.push_back(Pos{Player::x+2, Player::y-1});
+		Game::plyMutex.lock();
+		bullets.push_back({Player::x+2, Player::y});
+		Game::plyMutex.unlock();
 	}
 
 	void draw_bullets(){
@@ -42,19 +51,19 @@ namespace Player {
 		for(auto it = bullets.begin(); it != bullets.end();){
 			it->y--;
 
-			if(it->y < 0){
+			if(it->y < 2){
 				it = bullets.erase(it);
 				continue;
 			}
 
 			bool hit = false;
-			
+
 			for(auto it2 = Asteroids::asteroids.begin(); it2 != Asteroids::asteroids.end();){
-				if(it->y == it2->y && it->x == it2->x){
+				if(it->y-it2->y <= 1 && it->x == it2->x){
 					it = bullets.erase(it);
 					it2 = Asteroids::asteroids.erase(it2);
 					hit = true;
-					Score::addScore();
+					Game::score += 10;
 					break;
 				}
 
@@ -67,6 +76,8 @@ namespace Player {
 	}
 
 	void input() {
+		timeout(1000);
+
 		while (Game::running) {
 			int c = getch();
 
@@ -82,8 +93,10 @@ namespace Player {
 					break;
 				case 'x':
 					Player::shoot();
-					break;	
+					break;
 			}
 		}
+
+		timeout(-1);
 	}
 }; // namespace Player

@@ -12,10 +12,7 @@ namespace Player {
     extern std::vector<Pos> bullets;
 
     void init();
-    void moveLeft();
-    void moveRight();
-    void draw();
-    void shoot();
+    void draw_spaceship();
     void draw_bullets();
     void update_bullets();
     void input();
